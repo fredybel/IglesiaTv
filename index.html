@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor y Proyector Remoto</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #0f0f0f; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .view { display: none; width: 100%; height: 100%; padding: 20px; flex-direction: column; justify-content: center; align-items: center; }
+        .view.active { display: flex; }
+        
+        h1, h2 { margin-bottom: 20px; color: #3ecf8e; text-align: center; }
+        button { background: #3ecf8e; color: #000; border: none; padding: 12px 20px; font-size: 16px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #34b27b; transform: scale(1.05); }
+        
+        /* Estilos Panel Admin */
+        .admin-card { background: #1f1f1f; padding: 30px; border-radius: 12px; width: 100%; max-width: 550px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; border: 1px solid #333; }
+        input, select { padding: 12px; margin: 10px 0; width: 100%; background: #2f2f2f; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 16px; }
+        .file-list { max-height: 220px; overflow-y: auto; margin-top: 15px; text-align: left; border-top: 1px solid #444; padding-top: 10px; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; padding: 10px; margin-bottom: 8px; border-radius: 6px; font-size: 14px; }
+        .file-actions { display: flex; gap: 5px; }
+        .btn-project { background: #007bff; color: white; padding: 6px 12px; font-size: 12px; margin: 0; }
+        .btn-project:hover { background: #0056b3; }
+        .btn-delete { background: #d9534f; color: white; padding: 6px 12px; font-size: 12px; margin: 0; }
+
+        /* Estilos Reproductor TV */
+        #player-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; background: #000; }
+        #media-display { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #iframe-display { width: 100%; height: 100%; border: none; background: #fff; }
+        .exit-btn { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); color: #fff; padding: 8px 15px; font-size: 14px; z-index: 10; border: 1px solid #555; }
+    </style>
+</head>
+<body>
+
+    <!-- VISTA 1: SELECCIÓN DE PERFIL -->
+    <div id="view-selector" class="view active">
+        <h1>Selecciona un Perfil</h1>
+        <button onclick="switchView('view-admin')">🛠️ Administrador (Subir y Proyectar)</button>
+        <button onclick="switchView('view-player')">📺 Reproductor (Pantalla TV)</button>
+    </div>
+
+    <!-- VISTA 2: ADMINISTRADOR -->
+    <div id="view-admin" class="view">
+        <div class="admin-card">
+            <h2>Panel de Administración</h2>
+            <input type="file" id="fileInput">
+            <button onclick="uploadContent()" style="width: 100%;">Subir Archivo</button>
+            <p id="upload-status" style="font-size: 14px; color: #aaa;"></p>
+            
+            <div class="file-list" id="fileListContainer">
+                <p style="color: #777; text-align: center;">Cargando archivos...</p>
+            </div>
+            
+            <button onclick="switchView('view-selector')" style="background: #444; color: #fff; margin-top: 20px; width: 100%;">Volver al Menú</button>
+        </div>
+    </div>
+
+    <!-- VISTA 3: REPRODUCTOR (TV) CON TIEMPO REAL -->
+    <div id="view-player" class="view" style="padding: 0;">
+        <div id="player-container">
+            <button class="exit-btn" onclick="switchView('view-selector')">⬅ Menú</button>
+            <div id="content-box" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
+                <h2 style="color: #aaa;">Esperando que el administrador proyecte un contenido...</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- SDK DE SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN DE SUPABASE
+        // ==========================================
+        const SUPABASE_URL = 'https://qcjxffgwtunyhrnmwjlh.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_cg9V5TiS7hxAbi__t2lAQQ_wyMepCJ2'; // Pon tu llave aquí
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let realTimeChannel = null;
+
+        // Cambiar de vistas en pantalla
+        window.switchView = function(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            if (viewId === 'view-admin') {
+                loadFilesAdmin();
+            } else if (viewId === 'view-player') {
+                startReceiverTV();
+            } else {
+                stopReceiverTV();
+            }
+        };
+
+        // SUBIR ARCHIVO (ADMIN)
+        window.uploadContent = async function() {
+            const fileInput = document.getElementById('fileInput');
+            const statusText = document.getElementById('upload-status');
+            
+            if (fileInput.files.length === 0) {
+                alert('Selecciona un archivo primero.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const filePath = 'uploads/' + Date.now() + '_' + file.name;
+            statusText.innerText = "Subiendo archivo a Supabase...";
+
+            try {
+                const { error: uploadError } = await supabaseClient.storage.from('media').upload(filePath, file);
+                if (uploadError) throw uploadError;
+
+                const { data: publicUrlData } = await supabaseClient.storage.from('media').getPublicUrl(filePath);
+                const downloadURL = publicUrlData.publicUrl;
+
+                const { error: dbError } = await supabaseClient.from('contents').insert([{ 
+                    name: file.name, 
+                    type: file.type, 
+                    url: downloadURL, 
+                    path: filePath 
+                }]);
+
+                if (dbError) throw dbError;
+
+                statusText.innerText = "¡Subido con éxito!";
+                fileInput.value = "";
+                loadFilesAdmin();
+            } catch (error) {
+                console.error("Error al subir:", error);
+                statusText.innerText = "Error: " + error.message;
+            }
+        };
+
+        // CARGAR LISTA EN EL PANEL ADMIN CON BOTÓN PROYECTAR
+        async function loadFilesAdmin() {
+            const container = document.getElementById('fileListContainer');
+            container.innerHTML = "<p style='color: #777; text-align: center;'>Cargando...</p>";
+
+            const { data, error } = await supabaseClient.from('contents').select('*').order('created_at', { ascending: false });
+
+            if (error) {
+                container.innerHTML = "<p style='color: #d9534f; text-align: center;'>Error al cargar.</p>";
+                return;
+            }
+
+            container.innerHTML = "";
+            if (!data || data.length === 0) {
+                container.innerHTML = "<p style='color: #777; text-align: center;'>No hay archivos subidos.</p>";
+                return;
+            }
+
+            data.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                div.innerHTML = `
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 45%;" title="${item.name}">${item.name}</span>
+                    <div class="file-actions">
+                        <button class="btn-project" onclick="projectContent('${item.url}', '${item.type}', '${item.name}')">▶ Proyectar</button>
+                        <button class="btn-delete" onclick="deleteContent('${item.id}', '${item.path}')">Eliminar</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // ORDENAR LA PROYECCIÓN EN TIEMPO REAL
+        window.projectContent = async function(url, type, name) {
+            try {
+                // Guardamos el comando activo en una tabla o actualizamos estado
+                // Para hacerlo simple y directo por eventos, enviamos un mensaje por canal de Supabase Realtime
+                const channel = supabaseClient.channel('room_proyeccion');
+                await channel.subscribe();
+                await channel.send({
+                    type: 'broadcast',
+                    event: 'proyectar',
+                    payload: { url, type, name }
+                });
+                alert("¡Contenido proyectado en la pantalla de la TV!");
+            } catch (error) {
+                console.error("Error al proyectar:", error);
+                alert("No se pudo enviar la orden de proyección.");
+            }
+        };
+
+        // ELIMINAR CONTENIDO
+        window.deleteContent = async function(id, filePath) {
+            if (!confirm("¿Estás seguro de eliminar este archivo?")) return;
+            try {
+                await supabaseClient.storage.from('media').remove([filePath]);
+                await supabaseClient.from('contents').delete().eq('id', id);
+                loadFilesAdmin();
+            } catch (error) {
+                console.error("Error al eliminar:", error);
+            }
+        };
+
+        // RECEPTOR EN TIEMPO REAL PARA LA TV
+        function startReceiverTV() {
+            realTimeChannel = supabaseClient.channel('room_proyeccion');
+            
+            realTimeChannel
+                .on('broadcast', { event: 'proyectar' }, payload => {
+                    displayMedia(payload.payload);
+                })
+                .subscribe();
+        }
+
+        function displayMedia(item) {
+            const box = document.getElementById('content-box');
+            box.innerHTML = "";
+
+            const fileType = item.type ? item.type.toLowerCase() : '';
+            const fileName = item.name ? item.name.toLowerCase() : '';
+
+            if (fileType.includes('image') || fileName.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+                box.innerHTML = `<img id="media-display" src="${item.url}" />`;
+            } else if (fileType.includes('video') || fileName.match(/\.(mp4|webm|ogg|mov)$/)) {
+                box.innerHTML = `<video id="media-display" src="${item.url}" autoplay controls></video>`;
+            } else {
+                box.innerHTML = `<iframe id="iframe-display" src="${item.url}"></iframe>`;
+            }
+        }
+
+        function stopReceiverTV() {
+            if (realTimeChannel) {
+                supabaseClient.removeChannel(realTimeChannel);
+            }
+            document.getElementById('content-box').innerHTML = `<h2 style='color: #aaa;'>Esperando que el administrador proyecte un contenido...</h2>`;
+        }
+    </script>
+</body>
+</html>
