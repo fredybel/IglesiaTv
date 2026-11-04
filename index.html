@@ -3,181 +3,233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proyector Web por Capturas - Culto</title>
+    <title>StreamCast - Transmisión Local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #0f0f0f; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-        .view { display: none; width: 100%; height: 100%; padding: 20px; flex-direction: column; justify-content: center; align-items: center; position: absolute; top: 0; left: 0; }
-        .view.active { display: flex; }
-        
-        h1, h2 { margin-bottom: 20px; color: #3ecf8e; text-align: center; }
-        button { background: #3ecf8e; color: #000; border: none; padding: 15px 30px; font-size: 18px; margin: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button:hover { background: #34b27b; transform: scale(1.05); }
-        
-        .card { background: #1f1f1f; padding: 40px; border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); text-align: center; border: 1px solid #333; }
-
-        /* Pantalla Receptora (TV) */
-        #tv-screen { width: 100%; height: 100%; object-fit: contain; background: #000; position: absolute; top: 0; left: 0; z-index: 1; }
-        .exit-btn { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px; font-size: 16px; z-index: 10; border: 1px solid #555; cursor: pointer; border-radius: 6px; font-weight: bold; }
-        .exit-btn:hover { background: #d9534f; }
-        
-        #preview-canvas { display: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Outfit', sans-serif; }
+        .tv-glow { box-shadow: 0 0 40px rgba(99, 102, 241, 0.25); }
+        .scanlines {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+        }
     </style>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
 
-    <!-- VISTA 1: MENÚ PRINCIPAL -->
-    <div id="view-selector" class="view active" style="position: relative;">
-        <h1>Proyector Web (Sin Videollamada)</h1>
-        <button onclick="switchView('view-broadcaster')">🖥️ Panel Emisor (PC)</button>
-        <button onclick="switchView('view-receiver')">📺 Pantalla de TV (Receptor)</button>
-    </div>
-
-    <!-- VISTA 2: PANEL EMISOR (PC) -->
-    <div id="view-broadcaster" class="view" style="position: relative;">
-        <div class="card">
-            <h2>Transmitir Ventana</h2>
-            <p style="color: #aaa; font-size: 15px; margin-bottom: 20px;">Haz clic en iniciar, selecciona la ventana de <b>OpenSong</b> y el sistema comenzará a proyectarla automáticamente en la web.</p>
-            
-            <button id="startBtn" onclick="startBroadcasting()" style="background: #007bff; color: #fff; width: 100%;">🔴 Iniciar Proyección</button>
-            <button id="stopBtn" onclick="stopBroadcasting()" style="background: #d9534f; color: #fff; width: 100%; display: none;">⏹ Detener Proyección</button>
-            
-            <p id="status-msg" style="font-size: 14px; color: #3ecf8e; margin-top: 20px; font-weight: bold;"></p>
-            
-            <button onclick="switchView('view-selector')" style="background: #444; color: #fff; margin-top: 30px; width: 100%; padding: 12px;">Volver al Menú</button>
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="app.goHome()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-tower-broadcast text-white text-lg"></i>
+                </div>
+                <span class="font-bold text-xl tracking-wide bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">StreamCast</span>
+            </div>
+            <div id="connection-status" class="hidden items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>En vivo</span>
+            </div>
         </div>
-    </div>
+    </header>
 
-    <!-- VISTA 3: PANTALLA RECEPTORA (TV) -->
-    <div id="view-receiver" class="view" style="padding: 0; background: #000;">
-        <button class="exit-btn" onclick="switchView('view-selector')">⬅ Menú</button>
-        <img id="tv-screen" alt="Esperando proyección..." />
-        <div id="waitingMsg" style="position: absolute; color: #aaa; font-size: 22px; z-index: 2;">Esperando señal de proyección...</div>
-    </div>
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 flex items-center justify-center">
 
-    <canvas id="preview-canvas"></canvas>
+        <!-- VISTA 1: INICIO -->
+        <div id="view-home" class="w-full max-w-4xl text-center space-y-8 py-12">
+            <div class="space-y-4">
+                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Modo de Prueba Local</span>
+                <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight">Comparte tu pantalla <br><span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">como un Smart TV</span></h1>
+                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona un rol para probar la captura de video en tiempo real.</p>
+            </div>
 
-    <!-- SDK DE SUPABASE -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
+                <button onclick="app.selectRole('emitter')" class="group bg-slate-900/85 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-8 rounded-3xl transition-all text-left flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-14 h-14 rounded-2xl bg-indigo-600/10 flex items-center justify-center text-indigo-400 text-2xl">
+                            <i class="fa-solid fa-laptop-code"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Modo Emisor</h3>
+                        <p class="text-slate-400 text-sm">Transmite la pantalla de tu computadora o pestaña.</p>
+                    </div>
+                    <div class="pt-6 flex items-center text-indigo-400 font-medium text-sm">
+                        <span>Iniciar Transmisión</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </div>
+                </button>
 
-    <script>
-        // ==========================================
-        // CONFIGURACIÓN DE SUPABASE
-        // ==========================================
-        const SUPABASE_URL = 'https://qcjxffgwtunyhrnmwjlh.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_cg9V5TiS7hxAbi__t2lAQQ_wyMepCJ2'; // <-- Reemplaza con tu llave de Supabase
+                <button onclick="app.selectRole('receiver')" class="group bg-slate-900/85 hover:bg-slate-900 border border-slate-800 hover:border-purple-500/50 p-8 rounded-3xl transition-all text-left flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-14 h-14 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-400 text-2xl">
+                            <i class="fa-solid fa-tv"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Modo Receptor (TV)</h3>
+                        <p class="text-slate-400 text-sm">Visualiza la señal en pantalla completa con diseño Smart TV.</p>
+                    </div>
+                    <div class="pt-6 flex items-center text-purple-400 font-medium text-sm">
+                        <span>Abrir Pantalla TV</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
-        let mediaStream = null;
-        let broadcastInterval = null;
-        let receiverInterval = null;
+        <!-- VISTA 2: EMISOR -->
+        <div id="view-emitter" class="hidden w-full max-w-4xl space-y-8">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <h2 class="text-2xl font-bold">Panel Emisor</h2>
+                <button onclick="app.goHome()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-sm">Volver</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-400 uppercase">Sala Activa</span>
+                        <div class="text-4xl font-mono font-bold text-indigo-400 my-2">TV-01</div>
+                        <p class="text-xs text-slate-400">Comparte tu pantalla para que el receptor la reproduzca.</p>
+                    </div>
+                    <button onclick="app.startScreenShare()" id="btn-share" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm">Compartir Pantalla</button>
+                    <button onclick="app.stopScreenShare()" id="btn-stop" class="hidden w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-medium text-sm">Detener</button>
+                </div>
+                <div class="md:col-span-2 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 flex flex-col justify-center items-center relative min-h-[300px]">
+                    <div id="emitter-placeholder" class="text-center space-y-3">
+                        <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-slate-400 text-xl">
+                            <i class="fa-solid fa-desktop"></i>
+                        </div>
+                        <p class="text-slate-400 text-sm">Haz clic en "Compartir Pantalla"</p>
+                    </div>
+                    <video id="local-video" autoplay playsinline muted class="hidden w-full h-full max-h-[350px] object-contain rounded-xl border border-slate-800"></video>
+                </div>
+            </div>
+        </div>
 
-        window.switchView = function(viewId) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
+        <!-- VISTA 3: RECEPTOR (ESTILO TV) -->
+        <div id="view-receiver" class="hidden w-full max-w-4xl space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <h2 class="text-2xl font-bold">Modo Receptor (Smart TV)</h2>
+                <button onclick="app.goHome()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-sm">Volver</button>
+            </div>
 
-            if (viewId === 'view-receiver') {
-                startReceiverTV();
-            } else {
-                stopReceiverTV();
+            <div class="relative w-full aspect-video bg-black rounded-3xl border-4 border-slate-800 overflow-hidden tv-glow scanlines flex items-center justify-center">
+                <div id="tv-placeholder" class="text-center space-y-3 z-10">
+                    <div class="w-16 h-16 rounded-full bg-slate-900/80 border border-slate-800 flex items-center justify-center mx-auto text-purple-400 text-xl animate-pulse">
+                        <i class="fa-solid fa-satellite-dish"></i>
+                    </div>
+                    <p class="text-slate-400 text-sm font-medium">Esperando señal... Inicia la compartición en el Modo Emisor primero.</p>
+                </div>
+                <video id="remote-video" autoplay playsinline class="absolute inset-0 w-full h-full object-contain"></video>
+
+                <!-- Controles flotantes TV -->
+                <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between px-6 py-3 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800 z-20">
+                    <div class="flex items-center space-x-3">
+                        <span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+                        <span class="text-xs font-semibold tracking-wider">CANAL TV - EN VIVO</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="app.toggleFullscreen()" class="hover:text-purple-400 transition-colors" title="Pantalla Completa">
+                            <i class="fa-solid fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="border-t border-slate-800/50 py-4 text-center text-xs text-slate-400">
+        StreamCast Local &bull; Prueba Directa de Video
+    </footer>
+
+   <script>
+        class StreamCastApp {
+            constructor() {
+                this.localStream = null;
             }
-        };
 
-        // ==========================================
-        // LÓGICA DEL EMISOR (PC)
-        // ==========================================
-        async function startBroadcasting() {
-            const statusEl = document.getElementById('status-msg');
-            try {
-                statusEl.innerText = "Selecciona la ventana de OpenSong...";
-                
-                mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
-
-                document.getElementById('startBtn').style.display = 'none';
-                document.getElementById('stopBtn').style.display = 'block';
-                statusEl.innerText = "¡Proyectando en la nube en tiempo real!";
-
-                const videoTrack = mediaStream.getVideoTracks()[0];
-                const videoEl = document.createElement('video');
-                videoEl.srcObject = new MediaStream([videoTrack]);
-                videoEl.play();
-
-                const canvas = document.getElementById('preview-canvas');
-                const ctx = canvas.getContext('2d');
-
-                // Cada 1.2 segundos tomamos una captura y la subimos a Supabase
-                broadcastInterval = setInterval(async () => {
-                    if (!mediaStream) return;
-                    canvas.width = videoEl.videoWidth || 1280;
-                    canvas.height = videoEl.videoHeight || 720;
-                    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-                    
-                    // Convertimos el fotograma a imagen comprimida (JPEG)
-                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
-
-                    try {
-                        await supabaseClient.from('active_projection').upsert({
-                            id: 1,
-                            data: { image: imageData, time: Date.now() }
-                        });
-                    } catch (e) {
-                        console.error("Error al sincronizar fotograma:", e);
-                    }
-                }, 1200);
-
-                videoTrack.onended = () => {
-                    stopBroadcasting();
-                };
-
-            } catch (err) {
-                console.error("Error:", err);
-                statusEl.innerText = "No se pudo iniciar la proyección.";
-            }
-        }
-
-        async function stopBroadcasting() {
-            if (broadcastInterval) clearInterval(broadcastInterval);
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
+            switchView(viewId) {
+                document.getElementById('view-home').classList.add('hidden');
+                document.getElementById('view-emitter').classList.add('hidden');
+                document.getElementById('view-receiver').classList.add('hidden');
+                document.getElementById(viewId).classList.remove('hidden');
             }
 
-            document.getElementById('startBtn').style.display = 'block';
-            document.getElementById('stopBtn').style.display = 'none';
-            document.getElementById('status-msg').innerText = "Proyección detenida.";
+            goHome() {
+                // NOTA: Comentamos esto temporalmente para que no se detenga el stream al hacer clic en volver
+                // this.stopScreenShare(); 
+                this.switchView('view-home');
+            }
 
-            await supabaseClient.from('active_projection').upsert({ id: 1, data: { image: '', time: Date.now() } });
-        }
-
-        // ==========================================
-        // LÓGICA DEL RECEPTOR (TV)
-        // ==========================================
-        function startReceiverTV() {
-            fetchLatestProjection();
-            receiverInterval = setInterval(fetchLatestProjection, 1500);
-        }
-
-        async function fetchLatestProjection() {
-            try {
-                const { data } = await supabaseClient.from('active_projection').select('*').eq('id', 1).single();
-                const tvScreen = document.getElementById('tv-screen');
-                const waitingMsg = document.getElementById('waitingMsg');
-
-                if (data && data.data && data.data.image) {
-                    tvScreen.src = data.data.image;
-                    waitingMsg.style.display = 'none';
+            selectRole(role) {
+                if (role === 'emitter') {
+                    this.switchView('view-emitter');
                 } else {
-                    waitingMsg.style.display = 'block';
+                    this.switchView('view-receiver');
+                    // Si ya hay un stream activo, lo enlazamos al televisor de inmediato
+                    if (this.localStream) {
+                        const remoteVideo = document.getElementById('remote-video');
+                        remoteVideo.srcObject = this.localStream;
+                        document.getElementById('tv-placeholder').classList.add('hidden');
+                    }
                 }
-            } catch (err) {}
+            }
+
+            async startScreenShare() {
+                try {
+                    this.localStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { cursor: "always" },
+                        audio: true
+                    });
+
+                    // Mostrar en el emisor
+                    const localVideo = document.getElementById('local-video');
+                    localVideo.srcObject = this.localStream;
+                    localVideo.classList.remove('hidden');
+                    document.getElementById('emitter-placeholder').classList.add('hidden');
+
+                    document.getElementById('btn-share').classList.add('hidden');
+                    document.getElementById('btn-stop').classList.remove('hidden');
+                    document.getElementById('connection-status').classList.remove('hidden');
+                    document.getElementById('connection-status').classList.add('flex');
+
+                    this.localStream.getVideoTracks()[0].onended = () => {
+                        this.stopScreenShare();
+                    };
+
+                } catch (error) {
+                    console.error("Error:", error);
+                }
+            }
+
+            stopScreenShare() {
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(track => track.stop());
+                    this.localStream = null;
+                }
+                const localVideo = document.getElementById('local-video');
+                if(localVideo) {
+                    localVideo.srcObject = null;
+                    localVideo.classList.add('hidden');
+                }
+                const emitterPlaceholder = document.getElementById('emitter-placeholder');
+                if(emitterPlaceholder) emitterPlaceholder.classList.remove('hidden');
+
+                const remoteVideo = document.getElementById('remote-video');
+                if(remoteVideo) remoteVideo.srcObject = null;
+                
+                const tvPlaceholder = document.getElementById('tv-placeholder');
+                if(tvPlaceholder) tvPlaceholder.classList.remove('hidden');
+            }
+
+            toggleFullscreen() {
+                const tvElement = document.querySelector('#view-receiver .aspect-video');
+                if (!document.fullscreenElement) {
+                    tvElement.requestFullscreen().catch(err => alert(err.message));
+                } else {
+                    document.exitFullscreen();
+                }
+            }
         }
 
-        function stopReceiverTV() {
-            if (receiverInterval) clearInterval(receiverInterval);
-            document.getElementById('tv-screen').src = '';
-            document.getElementById('waitingMsg').style.display = 'block';
-        }
+        const app = new StreamCastApp();
     </script>
 </body>
 </html>
