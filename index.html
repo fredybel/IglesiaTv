@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- PeerJS CDN para conexión real en la nube -->
+    <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
@@ -44,9 +44,9 @@
         <!-- VISTA 1: INICIO -->
         <div id="view-home" class="w-full max-w-4xl text-center space-y-8 py-12">
             <div class="space-y-4">
-                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Streaming WebRTC en la Nube</span>
+                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Streaming WebRTC con STUN</span>
                 <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight">Comparte tu pantalla <br><span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">como un Smart TV</span></h1>
-                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona tu rol para transmitir o sintonizar desde cualquier dispositivo en internet.</p>
+                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona tu rol para transmitir o sintonizar desde cualquier dispositivo.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
@@ -169,21 +169,28 @@
             }
 
             initPeer() {
-                // Genera un código aleatorio de 4 dígitos para este cliente
                 this.roomCode = Math.floor(1000 + Math.random() * 9000).toString();
                 
-                // Usamos PeerJS con un prefijo único para evitar colisiones públicas
-                this.peer = new Peer('streamcast-' + this.roomCode);
+                // Configuramos servidores STUN de Google para mejorar la conectividad de red
+                const peerOptions = {
+                    config: {
+                        'iceServers': [
+                            { url: 'stun:stun.l.google.com:19302' },
+                            { url: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                };
+
+                this.peer = new Peer('streamcast-' + this.roomCode, peerOptions);
 
                 this.peer.on('open', (id) => {
-                    console.log('Conectado al servidor PeerJS con ID:', id);
+                    console.log('Conectado con ID:', id);
                     document.getElementById('room-code-display').innerText = this.roomCode;
                 });
 
-                // Si actúa como emisor, recibe llamadas de los receptores
                 this.peer.on('call', (call) => {
                     if (this.localStream) {
-                        call.answer(this.localStream); // Responde enviando el video de pantalla
+                        call.answer(this.localStream);
                     } else {
                         call.answer();
                     }
@@ -269,11 +276,9 @@
                 document.getElementById('receiver-tv').classList.remove('hidden');
                 document.getElementById('connection-status').classList.remove('hidden');
                 document.getElementById('connection-status').classList.add('flex');
-                document.getElementById('status-text').innerText = "Sintonizado";
+                document.getElementById('status-text').innerText = "Sintonizando";
 
                 const targetPeerId = 'streamcast-' + code;
-                
-                // Llama al emisor usando PeerJS
                 const call = this.peer.call(targetPeerId);
 
                 if (call) {
