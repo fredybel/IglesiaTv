@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Culto y Proyector Web</title>
+    <title>Streaming Web - Culto en Vivo</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #0f0f0f; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; }
@@ -11,71 +11,47 @@
         .view.active { display: flex; }
         
         h1, h2 { margin-bottom: 20px; color: #3ecf8e; text-align: center; }
-        button { background: #3ecf8e; color: #000; border: none; padding: 12px 20px; font-size: 16px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button { background: #3ecf8e; color: #000; border: none; padding: 15px 30px; font-size: 18px; margin: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: #34b27b; transform: scale(1.05); }
         
-        .admin-card { background: #1f1f1f; padding: 30px; border-radius: 12px; width: 100%; max-width: 650px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; border: 1px solid #333; display: flex; flex-direction: column; }
-        
-        input { padding: 12px; margin: 10px 0; width: 100%; background: #2f2f2f; color: #fff; border: 1px solid #444; border-radius: 6px; font-size: 16px; }
-        .file-list { max-height: 250px; overflow-y: auto; margin-top: 15px; text-align: left; border-top: 1px solid #444; padding-top: 10px; flex-grow: 1; }
-        .file-item { display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; padding: 12px; margin-bottom: 8px; border-radius: 6px; font-size: 14px; }
-        .file-actions { display: flex; gap: 5px; }
-        .btn-project { background: #007bff; color: white; padding: 6px 12px; font-size: 12px; margin: 0; }
-        .btn-project:hover { background: #0056b3; }
-        .btn-delete { background: #d9534f; color: white; padding: 6px 12px; font-size: 12px; margin: 0; }
+        .card { background: #1f1f1f; padding: 40px; border-radius: 12px; width: 100%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); text-align: center; border: 1px solid #333; }
 
-        /* Estilos Reproductor TV / Live Stream */
+        /* Estilos Pantalla Receptora (TV) */
         #player-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; background: #000; }
-        #liveVideo, #media-display { width: 100%; height: 100%; object-fit: contain; background: #000; }
-        #iframe-display { width: 100%; height: 100%; border: none; background: #000; }
-        .exit-btn { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); color: #fff; padding: 8px 15px; font-size: 14px; z-index: 10; border: 1px solid #555; }
-
-        #opensong-display-box { text-align: center; max-width: 900px; padding: 40px; }
-        #opensong-title { font-size: 32px; color: #3ecf8e; margin-bottom: 20px; font-weight: bold; }
-        #opensong-lyrics { font-size: 26px; line-height: 1.6; color: #f1f1f1; white-space: pre-wrap; font-family: sans-serif; text-align: left; max-height: 80vh; overflow-y: auto; }
+        #remoteVideo { width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .exit-btn { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); color: #fff; padding: 8px 15px; font-size: 14px; z-index: 10; border: 1px solid #555; cursor: pointer; border-radius: 6px; }
     </style>
 </head>
 <body>
 
-    <!-- VISTA 1: SELECCIÓN DE PERFIL -->
+    <!-- VISTA 1: MENÚ PRINCIPAL -->
     <div id="view-selector" class="view active">
-        <h1>Control de Culto y Proyector Web</h1>
-        <button onclick="switchView('view-admin')">🛠️ Administrador / Transmisión</button>
-        <button onclick="switchView('view-player')">📺 Reproductor (Pantalla TV)</button>
+        <h1>Streaming Web - OpenSong</h1>
+        <button onclick="switchView('view-broadcaster')">🖥️ Iniciar Transmisión (PC / Emisor)</button>
+        <button onclick="switchView('view-receiver')">📺 Pantalla de TV (Receptor)</button>
     </div>
 
-    <!-- VISTA 2: ADMINISTRADOR -->
-    <div id="view-admin" class="view" style="justify-content: flex-start; overflow-y: auto;">
-        <h2>Panel de Control y Transmisión en Vivo</h2>
-        <div class="admin-card">
-            <h3>🔴 Transmisión de Pantalla en Vivo</h3>
-            <p style="color: #aaa; font-size: 13px;">Comparte la ventana de OpenSong directamente a la TV por la web.</p>
-            <button id="startStreamBtn" onclick="startLiveStream()" style="background: #d9534f; color: #fff;">Iniciar Transmisión en Vivo</button>
-            <button id="stopStreamBtn" onclick="stopLiveStream()" style="background: #444; color: #fff; display: none;">Detener Transmisión</button>
-            <p id="stream-status" style="font-size: 13px; color: #3ecf8e;"></p>
-
-            <hr style="border-color: #444; margin: 20px 0;">
-
-            <h3>Subir Archivo al Programa (Multimedia / PDF)</h3>
-            <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.mp4,.pdf,.docx,.xlsx,.xml,.txt">
-            <button onclick="uploadGeneralFile()">Agregar al Programa</button>
-            <p id="upload-status" style="font-size: 13px; color: #aaa;"></p>
+    <!-- VISTA 2: PANEL EMISOR (PC) -->
+    <div id="view-broadcaster" class="view">
+        <div class="card">
+            <h2>Panel de Transmisión</h2>
+            <p style="color: #aaa; font-size: 14px; margin-bottom: 20px;">Haz clic en iniciar, selecciona la ventana de <b>OpenSong</b> y compártela en directo con la web.</p>
             
-            <h3 style="margin-top: 20px; font-size: 16px; text-align: left; color: #3ecf8e;">Elementos en el Programa:</h3>
-            <div class="file-list" id="programListContainer">
-                <p style="color: #777; text-align: center;">Cargando programa...</p>
-            </div>
+            <button id="startBtn" onclick="startStreaming()" style="background: #007bff; color: #fff; width: 100%;">🔴 Iniciar Transmisión</button>
+            <button id="stopBtn" onclick="stopStreaming()" style="background: #d9534f; color: #fff; width: 100%; display: none;">⏹ Detener Transmisión</button>
+            
+            <p id="status" style="font-size: 14px; color: #3ecf8e; margin-top: 20px; font-weight: bold;"></p>
+            
+            <button onclick="switchView('view-selector')" style="background: #444; color: #fff; margin-top: 30px; width: 100%; padding: 12px;">Volver al Menú</button>
         </div>
-        <button onclick="switchView('view-selector')" style="background: #444; color: #fff; margin-top: 20px;">Volver al Menú</button>
     </div>
 
-    <!-- VISTA 3: REPRODUCTOR (TV) -->
-    <div id="view-player" class="view" style="padding: 0;">
+    <!-- VISTA 3: PANTALLA RECEPTORA (TV) -->
+    <div id="view-receiver" class="view" style="padding: 0;">
         <div id="player-container">
             <button class="exit-btn" onclick="switchView('view-selector')">⬅ Menú</button>
-            <div id="content-box" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
-                <h2 style="color: #aaa;">Esperando contenido o transmisión...</h2>
-            </div>
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div id="waitingMsg" style="position: absolute; color: #aaa; font-size: 22px;">Esperando transmisión en vivo...</div>
         </div>
     </div>
 
@@ -90,57 +66,55 @@
         const SUPABASE_KEY = 'sb_publishable_cg9V5TiS7hxAbi__t2lAQQ_wyMepCJ2'; // <-- Reemplaza con tu llave de Supabase
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let tvInterval = null;
         
-        // Variables WebRTC para Streaming en Vivo
         let localStream = null;
         let peerConnection = null;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
         let signalingChannel = null;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         window.switchView = function(viewId) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
 
-            if (viewId === 'view-admin') {
-                loadProgramAdmin();
-            } else if (viewId === 'view-player') {
-                startReceiverTV();
+            if (viewId === 'view-receiver') {
+                startReceiver();
             } else {
-                stopReceiverTV();
+                stopReceiver();
             }
         };
 
         // ==========================================
-        // TRANSMISIÓN EN VIVO (WEBRTC + SUPABASE)
+        // LÓGICA DEL EMISOR (PC)
         // ==========================================
-        async function startLiveStream() {
-            const statusText = document.getElementById('stream-status');
+        async function startStreaming() {
+            const statusEl = document.getElementById('status');
             try {
-                statusText.innerText = "Selecciona la ventana de OpenSong...";
-                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+                statusEl.innerText = "Selecciona la ventana de OpenSong...";
                 
-                document.getElementById('startStreamBtn').style.display = 'none';
-                document.getElementById('stopStreamBtn').style.display = 'block';
-                statusText.innerText = "¡Transmitiendo en vivo por la web!";
+                // Capturamos la pantalla/ventana elegida
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
 
-                // Avisamos a la TV que la transmisión ha comenzado
-                await supabaseClient.from('active_projection').upsert({
-                    id: 1,
-                    data: { type: 'livestream_start' }
-                });
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('stopBtn').style.display = 'block';
+                statusEl.innerText = "¡Transmitiendo en vivo!";
 
-                setupSignaling();
+                // Indicamos en Supabase que la transmisión comenzó
+                await supabaseClient.from('active_projection').upsert({ id: 1, data: { status: 'live' } });
 
+                setupBroadcasterSignaling();
+
+                // Si el usuario detiene la compartición desde el botón nativo del navegador
                 localStream.getVideoTracks()[0].onended = () => {
-                    stopLiveStream();
+                    stopStreaming();
                 };
+
             } catch (err) {
-                statusText.innerText = "Error al compartir pantalla.";
+                console.error("Error al iniciar stream:", err);
+                statusEl.innerText = "No se pudo iniciar la transmisión.";
             }
         }
 
-        async function stopLiveStream() {
+        async function stopStreaming() {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
@@ -153,32 +127,22 @@
                 supabaseClient.removeChannel(signalingChannel);
             }
 
-            document.getElementById('startStreamBtn').style.display = 'block';
-            document.getElementById('stopStreamBtn').style.display = 'none';
-            document.getElementById('stream-status').innerText = "Transmisión detenida.";
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('status').innerText = "Transmisión detenida.";
 
-            await supabaseClient.from('active_projection').upsert({
-                id: 1,
-                data: { type: 'livestream_stop' }
-            });
+            await supabaseClient.from('active_projection').upsert({ id: 1, data: { status: 'offline' } });
         }
 
-        function setupSignaling() {
-            signalingChannel = supabaseClient.channel('webrtc_signal');
+        function setupBroadcasterSignaling() {
+            signalingChannel = supabaseClient.channel('streaming_room');
 
             signalingChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
                 if (!peerConnection) return;
                 if (payload.sdp) {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-                    if (payload.sdp.type === 'offer') {
-                        const answer = await peerConnection.createAnswer();
-                        await peerConnection.setLocalDescription(answer);
-                        signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { sdp: peerConnection.localDescription } });
-                    }
                 } else if (payload.candidate) {
-                    try {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                    } catch (e) {}
+                    try { await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch (e) {}
                 }
             }).subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
@@ -199,116 +163,38 @@
         }
 
         // ==========================================
-        // RECEPTOR TV Y PROGRAMA GENERAL
+        // LÓGICA DEL RECEPTOR (TV)
         // ==========================================
-        window.uploadGeneralFile = async function() {
-            const fileInput = document.getElementById('fileInput');
-            const statusText = document.getElementById('upload-status');
-            if (fileInput.files.length === 0) { alert('Selecciona un archivo.'); return; }
-
-            const file = fileInput.files[0];
-            const isSong = file.name.endsWith('.xml') || file.name.endsWith('.txt');
-            const filePath = (isSong ? 'songs/' : 'uploads/') + Date.now() + '_' + file.name;
-            statusText.innerText = "Subiendo...";
-
-            try {
-                let fileContent = isSong ? await readFileAsText(file) : null;
-                const { error: uploadError } = await supabaseClient.storage.from('media').upload(filePath, file);
-                if (uploadError) throw uploadError;
-
-                const { data: publicUrlData } = await supabaseClient.storage.from('media').getPublicUrl(filePath);
-                await supabaseClient.from('contents').insert([{ 
-                    name: file.name, type: isSong ? 'opensong' : file.type, url: publicUrlData.publicUrl, path: filePath, text_content: fileContent 
-                }]);
-
-                statusText.innerText = "¡Agregado!";
-                fileInput.value = "";
-                loadProgramAdmin();
-            } catch (error) { statusText.innerText = "Error: " + error.message; }
-        };
-
-        function readFileAsText(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.readAsText(file);
-            });
+        let tvInterval = null;
+        function startReceiver() {
+            checkStreamStatus();
+            tvInterval = setInterval(checkStreamStatus, 2000);
         }
 
-        async function loadProgramAdmin() {
-            const container = document.getElementById('programListContainer');
-            const { data } = await supabaseClient.from('contents').select('*').order('created_at', { ascending: false });
-
-            if (!data || data.length === 0) { container.innerHTML = "<p style='color: #777; text-align: center;'>Programa vacío.</p>"; return; }
-
-            container.innerHTML = "";
-            data.forEach((item) => {
-                let icon = item.type === 'opensong' ? '🎵' : '📄';
-                container.innerHTML += `
-                    <div class="file-item">
-                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 50%;">${icon} ${item.name}</span>
-                        <div class="file-actions">
-                            <button class="btn-project" onclick="projectProgramItem('${item.id}')">▶ Proyectar</button>
-                            <button class="btn-delete" onclick="deleteProgramItem('${item.id}', '${item.path}')">Eliminar</button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        window.projectProgramItem = async function(id) {
-            const { data } = await supabaseClient.from('contents').select('*').eq('id', id).single();
-            if (!data) return;
-
-            let payloadData = data.type === 'opensong' 
-                ? { type: 'opensong', name: data.name, textContent: data.text_content } 
-                : { type: 'media', url: data.url, fileType: data.type, name: data.name };
-
-            await supabaseClient.from('active_projection').upsert({ id: 1, data: payloadData });
-            alert("¡Enviado a la pantalla de la TV!");
-        };
-
-        window.deleteProgramItem = async function(id, filePath) {
-            if (!confirm("¿Eliminar?")) return;
-            await supabaseClient.storage.from('media').remove([filePath]);
-            await supabaseClient.from('contents').delete().eq('id', id);
-            loadProgramAdmin();
-        };
-
-        function startReceiverTV() {
-            checkActiveProjection();
-            tvInterval = setInterval(checkActiveProjection, 1000);
-        }
-
-        async function checkActiveProjection() {
+        async function checkStreamStatus() {
             try {
                 const { data } = await supabaseClient.from('active_projection').select('*').eq('id', 1).single();
-                if (data && data.data) {
-                    if (data.data.type === 'livestream_start') {
-                        initReceiverWebRTC();
-                    } else if (data.data.type === 'livestream_stop') {
-                        document.getElementById('content-box').innerHTML = `<h2 style='color: #aaa;'>Transmisión finalizada.</h2>`;
-                    } else {
-                        displayOnScreen(data.data);
-                    }
+                if (data && data.data && data.data.status === 'live') {
+                    initReceiverWebRTC();
                 }
             } catch (err) {}
         }
 
         function initReceiverWebRTC() {
-            const box = document.getElementById('content-box');
-            if (document.getElementById('liveVideo')) return; // Ya está activo
+            const remoteVideo = document.getElementById('remoteVideo');
+            const waitingMsg = document.getElementById('waitingMsg');
 
-            box.innerHTML = `<video id="liveVideo" autoplay playsinline></video>`;
-            const remoteVideo = document.getElementById('liveVideo');
-            
-            const receiverChannel = supabaseClient.channel('webrtc_signal');
-            const tvPeerConnection = new RTCPeerConnection(rtcConfig);
+            if (peerConnection && peerConnection.connectionState === 'connected') return;
 
-            tvPeerConnection.ontrack = event => {
+            const receiverChannel = supabaseClient.channel('streaming_room');
+            peerConnection = new RTCPeerConnection(rtcConfig);
+
+            peerConnection.ontrack = event => {
                 remoteVideo.srcObject = event.streams[0];
+                waitingMsg.style.display = 'none';
             };
 
-            tvPeerConnection.onicecandidate = event => {
+            peerConnection.onicecandidate = event => {
                 if (event.candidate) {
                     receiverChannel.send({ type: 'broadcast', event: 'signal', payload: { candidate: event.candidate } });
                 }
@@ -316,48 +202,26 @@
 
             receiverChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
                 if (payload.sdp) {
-                    await tvPeerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
                     if (payload.sdp.type === 'offer') {
-                        const answer = await tvPeerConnection.createAnswer();
-                        await tvPeerConnection.setLocalDescription(answer);
-                        receiverChannel.send({ type: 'broadcast', event: 'signal', payload: { sdp: tvPeerConnection.localDescription } });
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        receiverChannel.send({ type: 'broadcast', event: 'signal', payload: { sdp: peerConnection.localDescription } });
                     }
                 } else if (payload.candidate) {
-                    try { await tvPeerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch (e) {}
+                    try { await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch (e) {}
                 }
             }).subscribe();
         }
 
-        function displayOnScreen(data) {
-            const box = document.getElementById('content-box');
-            if (box.dataset.currentName === data.name) return;
-            box.dataset.currentName = data.name;
-            box.innerHTML = "";
-
-            if (data.type === 'opensong') {
-                box.innerHTML = `
-                    <div id="opensong-display-box">
-                        <div id="opensong-title">${data.name}</div>
-                        <div id="opensong-lyrics">${data.textContent}</div>
-                    </div>`;
-            } else {
-                const fileType = data.fileType ? data.fileType.toLowerCase() : '';
-                const fileName = data.name ? data.name.toLowerCase() : '';
-
-                if (fileType.includes('image') || fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                    box.innerHTML = `<img id="media-display" src="${data.url}" />`;
-                } else if (fileType.includes('video') || fileName.match(/\.(mp4|webm|ogg|mov)$/i)) {
-                    box.innerHTML = `<video id="media-display" src="${data.url}" autoplay controls></video>`;
-                } else {
-                    const pdfViewerUrl = data.url + '#toolbar=0&view=FitH';
-                    box.innerHTML = `<iframe id="iframe-display" src="${pdfViewerUrl}"></iframe>`;
-                }
-            }
-        }
-
-        function stopReceiverTV() {
+        function stopReceiver() {
             if (tvInterval) clearInterval(tvInterval);
-            document.getElementById('content-box').innerHTML = `<h2 style='color: #aaa;'>Esperando contenido...</h2>`;
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            document.getElementById('remoteVideo').srcObject = null;
+            document.getElementById('waitingMsg').style.display = 'block';
         }
     </script>
 </body>
