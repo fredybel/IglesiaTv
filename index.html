@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamCast - Clave Fija</title>
+    <title>StreamCast - Sala Segura P2P</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -44,9 +44,9 @@
         <!-- VISTA 1: INICIO -->
         <div id="view-home" class="w-full max-w-4xl text-center space-y-8 py-12">
             <div class="space-y-4">
-                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Sistema de Clave Fija</span>
+                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Sistema de Enlace Estable</span>
                 <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight">Comparte tu pantalla <br><span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">como un Smart TV</span></h1>
-                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona tu rol utilizando la clave compartida.</p>
+                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona tu rol para comenzar la transmisión segura.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
@@ -56,7 +56,7 @@
                             <i class="fa-solid fa-laptop-code"></i>
                         </div>
                         <h3 class="text-xl font-semibold">Modo Emisor</h3>
-                        <p class="text-slate-400 text-sm">Activa la sala fija para transmitir tu pantalla.</p>
+                        <p class="text-slate-400 text-sm">Genera tu sala limpia y comparte tu pantalla.</p>
                     </div>
                     <div class="pt-6 flex items-center text-indigo-400 font-medium text-sm">
                         <span>Iniciar Emisión</span> <i class="fa-solid fa-arrow-right ml-2"></i>
@@ -69,7 +69,7 @@
                             <i class="fa-solid fa-tv"></i>
                         </div>
                         <h3 class="text-xl font-semibold">Modo Receptor (TV)</h3>
-                        <p class="text-slate-400 text-sm">Sintoniza utilizando la clave fija establecida.</p>
+                        <p class="text-slate-400 text-sm">Introduce el código generado para sintonizar.</p>
                     </div>
                     <div class="pt-6 flex items-center text-purple-400 font-medium text-sm">
                         <span>Sintonizar TV</span> <i class="fa-solid fa-arrow-right ml-2"></i>
@@ -87,9 +87,9 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-semibold text-slate-400 uppercase">Clave de Sala Fija</span>
-                        <div class="text-3xl font-mono font-bold text-indigo-400 my-2">JADY-1234</div>
-                        <p class="text-xs text-slate-400">Introduce esta misma clave en tu dispositivo receptor.</p>
+                        <span class="text-xs font-semibold text-slate-400 uppercase">Código de Sala Activo</span>
+                        <div id="room-code-display" class="text-3xl font-mono font-bold text-indigo-400 my-2">Generando...</div>
+                        <p class="text-xs text-slate-400">Este código es único para tu sesión actual. Ingrésalo en tu dispositivo receptor.</p>
                     </div>
                     <button onclick="app.startScreenShare()" id="btn-share" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm shadow-lg shadow-indigo-600/30">Compartir Pantalla</button>
                     <button onclick="app.stopScreenShare()" id="btn-stop" class="hidden w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-medium text-sm">Detener Transmisión</button>
@@ -114,10 +114,10 @@
                 </div>
                 <div class="space-y-2">
                     <h2 class="text-2xl font-bold">Sintonizar Canal</h2>
-                    <p class="text-slate-400 text-sm">Introduce la clave fija de la sala (Ej: JADY-1234).</p>
+                    <p class="text-slate-400 text-sm">Introduce el código numérico exacto que aparece en el emisor.</p>
                 </div>
                 <div class="space-y-4">
-                    <input type="text" id="input-code" placeholder="JADY-1234" class="w-full text-center text-2xl font-mono uppercase bg-slate-950 border border-slate-800 rounded-2xl py-3 focus:outline-none focus:border-purple-500 transition-colors">
+                    <input type="text" id="input-code" maxlength="6" placeholder="Ej: 4829" class="w-full text-center text-3xl font-mono tracking-widest bg-slate-950 border border-slate-800 rounded-2xl py-3 focus:outline-none focus:border-purple-500 transition-colors uppercase">
                     <button onclick="app.connectToRoom()" class="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-medium text-sm shadow-lg shadow-purple-600/30">Conectar al TV</button>
                 </div>
                 <button onclick="app.goHome()" class="text-xs text-slate-400 hover:text-slate-200">
@@ -156,27 +156,30 @@
     </main>
 
     <footer class="border-t border-slate-800/50 py-4 text-center text-xs text-slate-400">
-        StreamCast &bull; Clave Fija Configurada
+        StreamCast &bull; Enlace Estable P2P
     </footer>
 
     <script>
-        // CLAVE FIJA DEFINIDA PARA TU SALA (puedes cambiarla por la palabra o número que prefieras)
-        const FIXED_ROOM_KEY = "JADY-1234";
-
         class StreamCastApp {
             constructor() {
                 this.peer = null;
                 this.localStream = null;
+                this.activeRoomCode = null;
             }
 
             initEmitterPeer() {
-                // El emisor usa directamente la clave fija como su ID en PeerJS
-                this.peer = new Peer('streamcast-' + FIXED_ROOM_KEY, {
+                // Generamos un código numérico aleatorio único de 4 dígitos basado en milisegundos para evitar colisiones
+                this.activeRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+                
+                // Usamos un prefijo único para la sesión en PeerJS
+                const peerId = 'streamcast-jady-' + this.activeRoomCode;
+
+                this.peer = new Peer(peerId, {
                     config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] }
                 });
 
                 this.peer.on('open', (id) => {
-                    console.log('Emisor listo con clave fija:', FIXED_ROOM_KEY);
+                    document.getElementById('room-code-displayinnerText' || 'room-code-display').innerText = this.activeRoomCode;
                 });
 
                 this.peer.on('call', (call) => {
@@ -189,7 +192,6 @@
 
                 this.peer.on('error', (err) => {
                     console.error("Peer error:", err);
-                    alert("Error en la conexión. Asegúrate de que no haya otra pestaña usando el mismo rol abierto.");
                 });
             }
 
@@ -214,6 +216,7 @@
                     this.initEmitterPeer(); 
                 } else {
                     this.switchView('view-receiver');
+                    // Inicializamos el receptor limpio
                     if (!this.peer || this.peer.disconnected) {
                         this.peer = new Peer({
                             config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] }
@@ -268,11 +271,9 @@
             }
 
             connectToRoom() {
-                const code = document.getElementById('input-code').value.trim().toUpperCase();
-                
-                // Validamos que introduzca la clave fija correcta
-                if (code !== FIXED_ROOM_KEY) {
-                    alert("Clave incorrecta. Introduce la clave fija de la sala (Ej: JADY-1234).");
+                const code = document.getElementById('input-code').value.trim();
+                if (code.length < 4) {
+                    alert("Introduce el código completo de 4 dígitos.");
                     return;
                 }
 
@@ -282,7 +283,7 @@
                 document.getElementById('connection-status').classList.add('flex');
                 document.getElementById('status-text').innerText = "Sintonizado";
 
-                const targetId = 'streamcast-' + FIXED_ROOM_KEY;
+                const targetId = 'streamcast-jady-' + code;
                 const call = this.peer.call(targetId);
 
                 if (call) {
@@ -297,7 +298,7 @@
                         this.disconnectTV();
                     });
                 } else {
-                    alert("No se pudo conectar con la sala. Asegúrate de que el emisor esté transmitiendo.");
+                    alert("No se pudo conectar con la sala. Verifica que el código sea correcto.");
                     this.disconnectTV();
                 }
             }
