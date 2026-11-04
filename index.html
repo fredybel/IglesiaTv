@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proyector Web - Transmisión en Vivo</title>
+    <title>Proyector Web por Capturas - Culto</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #0f0f0f; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; }
-        .view { display: none; width: 100%; height: 100%; padding: 20px; flex-direction: column; justify-content: center; align-items: center; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #0f0f0f; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        .view { display: none; width: 100%; height: 100%; padding: 20px; flex-direction: column; justify-content: center; align-items: center; position: absolute; top: 0; left: 0; }
         .view.active { display: flex; }
         
         h1, h2 { margin-bottom: 20px; color: #3ecf8e; text-align: center; }
@@ -16,30 +16,31 @@
         
         .card { background: #1f1f1f; padding: 40px; border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); text-align: center; border: 1px solid #333; }
 
-        /* Estilos Pantalla Receptora (TV) */
-        #player-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; background: #000; }
-        #remoteVideo { width: 100%; height: 100%; object-fit: contain; background: #000; }
+        /* Pantalla Receptora (TV) */
+        #tv-screen { width: 100%; height: 100%; object-fit: contain; background: #000; position: absolute; top: 0; left: 0; z-index: 1; }
         .exit-btn { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px; font-size: 16px; z-index: 10; border: 1px solid #555; cursor: pointer; border-radius: 6px; font-weight: bold; }
         .exit-btn:hover { background: #d9534f; }
+        
+        #preview-canvas { display: none; }
     </style>
 </head>
 <body>
 
     <!-- VISTA 1: MENÚ PRINCIPAL -->
-    <div id="view-selector" class="view active">
-        <h1>Proyector Web de Pantalla</h1>
-        <button onclick="switchView('view-broadcaster')">🖥️ Panel Emisor (Compartir Pantalla)</button>
+    <div id="view-selector" class="view active" style="position: relative;">
+        <h1>Proyector Web (Sin Videollamada)</h1>
+        <button onclick="switchView('view-broadcaster')">🖥️ Panel Emisor (PC)</button>
         <button onclick="switchView('view-receiver')">📺 Pantalla de TV (Receptor)</button>
     </div>
 
     <!-- VISTA 2: PANEL EMISOR (PC) -->
-    <div id="view-broadcaster" class="view">
+    <div id="view-broadcaster" class="view" style="position: relative;">
         <div class="card">
-            <h2>Transmitir Pantalla por la Web</h2>
-            <p style="color: #aaa; font-size: 15px; margin-bottom: 20px;">Haz clic en iniciar, selecciona la ventana de <b>OpenSong</b> y se transmitirá directamente a cualquier receptor web.</p>
+            <h2>Transmitir Ventana</h2>
+            <p style="color: #aaa; font-size: 15px; margin-bottom: 20px;">Haz clic en iniciar, selecciona la ventana de <b>OpenSong</b> y el sistema comenzará a proyectarla automáticamente en la web.</p>
             
-            <button id="startBtn" onclick="startScreenShare()" style="background: #007bff; color: #fff; width: 100%;">🔴 Iniciar Transmisión de Pantalla</button>
-            <button id="stopBtn" onclick="stopScreenShare()" style="background: #d9534f; color: #fff; width: 100%; display: none;">⏹ Detener Transmisión</button>
+            <button id="startBtn" onclick="startBroadcasting()" style="background: #007bff; color: #fff; width: 100%;">🔴 Iniciar Proyección</button>
+            <button id="stopBtn" onclick="stopBroadcasting()" style="background: #d9534f; color: #fff; width: 100%; display: none;">⏹ Detener Proyección</button>
             
             <p id="status-msg" style="font-size: 14px; color: #3ecf8e; margin-top: 20px; font-weight: bold;"></p>
             
@@ -48,13 +49,13 @@
     </div>
 
     <!-- VISTA 3: PANTALLA RECEPTORA (TV) -->
-    <div id="view-receiver" class="view" style="padding: 0;">
-        <div id="player-container">
-            <button class="exit-btn" onclick="switchView('view-selector')">⬅ Menú</button>
-            <video id="remoteVideo" autoplay playsinline></video>
-            <div id="waitingMsg" style="position: absolute; color: #aaa; font-size: 22px;">Esperando transmisión de pantalla...</div>
-        </div>
+    <div id="view-receiver" class="view" style="padding: 0; background: #000;">
+        <button class="exit-btn" onclick="switchView('view-selector')">⬅ Menú</button>
+        <img id="tv-screen" alt="Esperando proyección..." />
+        <div id="waitingMsg" style="position: absolute; color: #aaa; font-size: 22px; z-index: 2;">Esperando señal de proyección...</div>
     </div>
+
+    <canvas id="preview-canvas"></canvas>
 
     <!-- SDK DE SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -64,179 +65,117 @@
         // CONFIGURACIÓN DE SUPABASE
         // ==========================================
         const SUPABASE_URL = 'https://qcjxffgwtunyhrnmwjlh.supabase.co';
-        const SUPABASE_KEY = 'PEGA_AQUI_TU_LLAVE_PUBLICA_ANON_REAL'; // <-- Reemplaza con tu llave de Supabase
+        const SUPABASE_KEY = 'sb_publishable_cg9V5TiS7hxAbi__t2lAQQ_wyMepCJ2'; // <-- Reemplaza con tu llave de Supabase
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
-        let localStream = null;
-        let peerConnection = null;
-        let signalingChannel = null;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        let mediaStream = null;
+        let broadcastInterval = null;
+        let receiverInterval = null;
 
         window.switchView = function(viewId) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
 
             if (viewId === 'view-receiver') {
-                startReceiverListener();
+                startReceiverTV();
             } else {
-                stopReceiverListener();
+                stopReceiverTV();
             }
         };
 
         // ==========================================
         // LÓGICA DEL EMISOR (PC)
         // ==========================================
-        async function startScreenShare() {
+        async function startBroadcasting() {
             const statusEl = document.getElementById('status-msg');
             try {
                 statusEl.innerText = "Selecciona la ventana de OpenSong...";
                 
-                // Abre el selector nativo del navegador para compartir la ventana
-                localStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
+                mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
 
                 document.getElementById('startBtn').style.display = 'none';
                 document.getElementById('stopBtn').style.display = 'block';
-                statusEl.innerText = "¡Transmitiendo pantalla en vivo!";
+                statusEl.innerText = "¡Proyectando en la nube en tiempo real!";
 
-                // Avisamos a la nube que la transmisión está activa
-                await supabaseClient.from('active_projection').upsert({ id: 1, data: { status: 'live' } });
+                const videoTrack = mediaStream.getVideoTracks()[0];
+                const videoEl = document.createElement('video');
+                videoEl.srcObject = new MediaStream([videoTrack]);
+                videoEl.play();
 
-                setupSignalingChannel('broadcaster');
+                const canvas = document.getElementById('preview-canvas');
+                const ctx = canvas.getContext('2d');
 
-                localStream.getVideoTracks()[0].onended = () => {
-                    stopScreenShare();
+                // Cada 1.2 segundos tomamos una captura y la subimos a Supabase
+                broadcastInterval = setInterval(async () => {
+                    if (!mediaStream) return;
+                    canvas.width = videoEl.videoWidth || 1280;
+                    canvas.height = videoEl.videoHeight || 720;
+                    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convertimos el fotograma a imagen comprimida (JPEG)
+                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
+
+                    try {
+                        await supabaseClient.from('active_projection').upsert({
+                            id: 1,
+                            data: { image: imageData, time: Date.now() }
+                        });
+                    } catch (e) {
+                        console.error("Error al sincronizar fotograma:", e);
+                    }
+                }, 1200);
+
+                videoTrack.onended = () => {
+                    stopBroadcasting();
                 };
 
             } catch (err) {
                 console.error("Error:", err);
-                statusEl.innerText = "No se pudo iniciar la transmisión.";
+                statusEl.innerText = "No se pudo iniciar la proyección.";
             }
         }
 
-        async function stopScreenShare() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            if (signalingChannel) {
-                supabaseClient.removeChannel(signalingChannel);
+        async function stopBroadcasting() {
+            if (broadcastInterval) clearInterval(broadcastInterval);
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
             }
 
             document.getElementById('startBtn').style.display = 'block';
             document.getElementById('stopBtn').style.display = 'none';
-            document.getElementById('status-msg').innerText = "Transmisión detenida.";
+            document.getElementById('status-msg').innerText = "Proyección detenida.";
 
-            await supabaseClient.from('active_projection').upsert({ id: 1, data: { status: 'offline' } });
+            await supabaseClient.from('active_projection').upsert({ id: 1, data: { image: '', time: Date.now() } });
         }
 
         // ==========================================
-        // LÓGICA DE SEÑALIZACIÓN Y RECEPTOR (TV)
+        // LÓGICA DEL RECEPTOR (TV)
         // ==========================================
-        let checkInterval = null;
-
-        function startReceiverListener() {
-            checkStreamStatus();
-            checkInterval = setInterval(checkStreamStatus, 2000);
+        function startReceiverTV() {
+            fetchLatestProjection();
+            receiverInterval = setInterval(fetchLatestProjection, 1500);
         }
 
-        async function checkStreamStatus() {
+        async function fetchLatestProjection() {
             try {
                 const { data } = await supabaseClient.from('active_projection').select('*').eq('id', 1).single();
-                if (data && data.data && data.data.status === 'live') {
-                    initReceiverConnection();
+                const tvScreen = document.getElementById('tv-screen');
+                const waitingMsg = document.getElementById('waitingMsg');
+
+                if (data && data.data && data.data.image) {
+                    tvScreen.src = data.data.image;
+                    waitingMsg.style.display = 'none';
+                } else {
+                    waitingMsg.style.display = 'block';
                 }
             } catch (err) {}
         }
 
-        function initReceiverConnection() {
-            if (peerConnection && peerConnection.connectionState === 'connected') return;
-
-            const remoteVideo = document.getElementById('remoteVideo');
-            const waitingMsg = document.getElementById('waitingMsg');
-
-            signalingChannel = supabaseClient.channel('screen_share_room');
-            peerConnection = new RTCPeerConnection(rtcConfig);
-
-            peerConnection.ontrack = event => {
-                remoteVideo.srcObject = event.streams[0];
-                waitingMsg.style.display = 'none';
-            };
-
-            peerConnection.onicecandidate = event => {
-                if (event.candidate) {
-                    signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { candidate: event.candidate } });
-                }
-            };
-
-            signalingChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
-                if (!peerConnection) return;
-                if (payload.sdp) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-                    if (payload.sdp.type === 'offer') {
-                        const answer = await peerConnection.createAnswer();
-                        await peerConnection.setLocalDescription(answer);
-                        signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { sdp: peerConnection.localDescription } });
-                    }
-                } else if (payload.candidate) {
-                    try { await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch (e) {}
-                }
-            }).subscribe(async (status) => {
-                if (status === 'SUBSCRIBED' && localStream) {
-                    // Si estamos en el lado emisor, agregamos las pistas de video
-                    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                    peerConnection.onicecandidate = event => {
-                        if (event.candidate) {
-                            signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { candidate: event.candidate } });
-                        }
-                    };
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-                    signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { sdp: peerConnection.localDescription } });
-                }
-            });
-        }
-
-        function setupSignalingChannel(role) {
-            signalingChannel = supabaseClient.channel('screen_share_room');
-            signalingChannel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED' && role === 'broadcaster') {
-                    peerConnection = new RTCPeerConnection(rtcConfig);
-                    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-                    peerConnection.onicecandidate = event => {
-                        if (event.candidate) {
-                            signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { candidate: event.candidate } });
-                        }
-                    };
-
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-                    signalingChannel.send({ type: 'broadcast', event: 'signal', payload: { sdp: peerConnection.localDescription } });
-                }
-            });
-
-            signalingChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
-                if (!peerConnection) return;
-                if (payload.sdp) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-                } else if (payload.candidate) {
-                    try { await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch (e) {}
-                }
-            });
-        }
-
-        function stopReceiverListener() {
-            if (checkInterval) clearInterval(checkInterval);
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            document.getElementById('remoteVideo').srcObject = null;
+        function stopReceiverTV() {
+            if (receiverInterval) clearInterval(receiverInterval);
+            document.getElementById('tv-screen').src = '';
             document.getElementById('waitingMsg').style.display = 'block';
         }
     </script>
