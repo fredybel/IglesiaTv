@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamCast - Transmisión Local</title>
+    <title>StreamCast - Transmisión P2P</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PeerJS CDN para conexión real en la nube -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Outfit', sans-serif; }
@@ -29,7 +33,7 @@
             </div>
             <div id="connection-status" class="hidden items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>En vivo</span>
+                <span id="status-text">En línea</span>
             </div>
         </div>
     </header>
@@ -40,9 +44,9 @@
         <!-- VISTA 1: INICIO -->
         <div id="view-home" class="w-full max-w-4xl text-center space-y-8 py-12">
             <div class="space-y-4">
-                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Modo de Prueba Local</span>
+                <span class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Streaming WebRTC en la Nube</span>
                 <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight">Comparte tu pantalla <br><span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">como un Smart TV</span></h1>
-                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona un rol para probar la captura de video en tiempo real.</p>
+                <p class="text-slate-400 max-w-xl mx-auto text-base md:text-lg">Selecciona tu rol para transmitir o sintonizar desde cualquier dispositivo en internet.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto pt-4">
@@ -52,10 +56,10 @@
                             <i class="fa-solid fa-laptop-code"></i>
                         </div>
                         <h3 class="text-xl font-semibold">Modo Emisor</h3>
-                        <p class="text-slate-400 text-sm">Transmite la pantalla de tu computadora o pestaña.</p>
+                        <p class="text-slate-400 text-sm">Genera un código de sala y comparte tu pantalla.</p>
                     </div>
                     <div class="pt-6 flex items-center text-indigo-400 font-medium text-sm">
-                        <span>Iniciar Transmisión</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                        <span>Crear Sala</span> <i class="fa-solid fa-arrow-right ml-2"></i>
                     </div>
                 </button>
 
@@ -65,10 +69,10 @@
                             <i class="fa-solid fa-tv"></i>
                         </div>
                         <h3 class="text-xl font-semibold">Modo Receptor (TV)</h3>
-                        <p class="text-slate-400 text-sm">Visualiza la señal en pantalla completa con diseño Smart TV.</p>
+                        <p class="text-slate-400 text-sm">Introduce el código de 4 dígitos para sintonizar el canal.</p>
                     </div>
                     <div class="pt-6 flex items-center text-purple-400 font-medium text-sm">
-                        <span>Abrir Pantalla TV</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                        <span>Sintonizar TV</span> <i class="fa-solid fa-arrow-right ml-2"></i>
                     </div>
                 </button>
             </div>
@@ -83,12 +87,12 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-semibold text-slate-400 uppercase">Sala Activa</span>
-                        <div class="text-4xl font-mono font-bold text-indigo-400 my-2">TV-01</div>
-                        <p class="text-xs text-slate-400">Comparte tu pantalla para que el receptor la reproduzca.</p>
+                        <span class="text-xs font-semibold text-slate-400 uppercase">Tu Código de Sala</span>
+                        <div id="room-code-display" class="text-4xl font-mono font-bold text-indigo-400 my-2">Cargando...</div>
+                        <p class="text-xs text-slate-400">Comparte este código en el dispositivo receptor.</p>
                     </div>
-                    <button onclick="app.startScreenShare()" id="btn-share" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm">Compartir Pantalla</button>
-                    <button onclick="app.stopScreenShare()" id="btn-stop" class="hidden w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-medium text-sm">Detener</button>
+                    <button onclick="app.startScreenShare()" id="btn-share" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm shadow-lg shadow-indigo-600/30">Compartir Pantalla</button>
+                    <button onclick="app.stopScreenShare()" id="btn-stop" class="hidden w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-medium text-sm">Detener Transmisión</button>
                 </div>
                 <div class="md:col-span-2 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 flex flex-col justify-center items-center relative min-h-[300px]">
                     <div id="emitter-placeholder" class="text-center space-y-3">
@@ -104,17 +108,30 @@
 
         <!-- VISTA 3: RECEPTOR (ESTILO TV) -->
         <div id="view-receiver" class="hidden w-full max-w-4xl space-y-6">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-                <h2 class="text-2xl font-bold">Modo Receptor (Smart TV)</h2>
-                <button onclick="app.goHome()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-sm">Volver</button>
+            <div id="receiver-setup" class="bg-slate-900/80 border border-slate-800 p-8 rounded-3xl max-w-md mx-auto text-center space-y-6">
+                <div class="w-14 h-14 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-400 text-2xl mx-auto">
+                    <i class="fa-solid fa-tv"></i>
+                </div>
+                <div class="space-y-2">
+                    <h2 class="text-2xl font-bold">Sintonizar Canal</h2>
+                    <p class="text-slate-400 text-sm">Introduce el código de 4 dígitos de la sala emisora.</p>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="input-code" maxlength="4" placeholder="Ej: 4829" class="w-full text-center text-3xl font-mono tracking-widest bg-slate-950 border border-slate-800 rounded-2xl py-3 focus:outline-none focus:border-purple-500 transition-colors uppercase">
+                    <button onclick="app.connectToRoom()" class="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 font-medium text-sm shadow-lg shadow-purple-600/30">Conectar al TV</button>
+                </div>
+                <button onclick="app.goHome()" class="text-xs text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Regresar al inicio
+                </button>
             </div>
 
-            <div class="relative w-full aspect-video bg-black rounded-3xl border-4 border-slate-800 overflow-hidden tv-glow scanlines flex items-center justify-center">
+            <!-- Pantalla del TV -->
+            <div id="receiver-tv" class="hidden relative w-full aspect-video bg-black rounded-3xl border-4 border-slate-800 overflow-hidden tv-glow scanlines flex items-center justify-center">
                 <div id="tv-placeholder" class="text-center space-y-3 z-10">
                     <div class="w-16 h-16 rounded-full bg-slate-900/80 border border-slate-800 flex items-center justify-center mx-auto text-purple-400 text-xl animate-pulse">
                         <i class="fa-solid fa-satellite-dish"></i>
                     </div>
-                    <p class="text-slate-400 text-sm font-medium">Esperando señal... Inicia la compartición en el Modo Emisor primero.</p>
+                    <p class="text-slate-400 text-sm font-medium">Sintonizando señal en vivo...</p>
                 </div>
                 <video id="remote-video" autoplay playsinline class="absolute inset-0 w-full h-full object-contain"></video>
 
@@ -128,6 +145,9 @@
                         <button onclick="app.toggleFullscreen()" class="hover:text-purple-400 transition-colors" title="Pantalla Completa">
                             <i class="fa-solid fa-expand"></i>
                         </button>
+                        <button onclick="app.disconnectTV()" class="text-rose-400 hover:text-rose-300 text-xs font-medium">
+                            <i class="fa-solid fa-power-off mr-1"></i> Desconectar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -136,13 +156,42 @@
     </main>
 
     <footer class="border-t border-slate-800/50 py-4 text-center text-xs text-slate-400">
-        StreamCast Local &bull; Prueba Directa de Video
+        StreamCast &bull; Conectado vía PeerJS Cloud
     </footer>
 
-   <script>
+    <script>
         class StreamCastApp {
             constructor() {
+                this.peer = null;
                 this.localStream = null;
+                this.roomCode = null;
+                this.initPeer();
+            }
+
+            initPeer() {
+                // Genera un código aleatorio de 4 dígitos para este cliente
+                this.roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+                
+                // Usamos PeerJS con un prefijo único para evitar colisiones públicas
+                this.peer = new Peer('streamcast-' + this.roomCode);
+
+                this.peer.on('open', (id) => {
+                    console.log('Conectado al servidor PeerJS con ID:', id);
+                    document.getElementById('room-code-display').innerText = this.roomCode;
+                });
+
+                // Si actúa como emisor, recibe llamadas de los receptores
+                this.peer.on('call', (call) => {
+                    if (this.localStream) {
+                        call.answer(this.localStream); // Responde enviando el video de pantalla
+                    } else {
+                        call.answer();
+                    }
+                });
+
+                this.peer.on('error', (err) => {
+                    console.error('Error en PeerJS:', err);
+                });
             }
 
             switchView(viewId) {
@@ -153,23 +202,14 @@
             }
 
             goHome() {
-                // NOTA: Comentamos esto temporalmente para que no se detenga el stream al hacer clic en volver
-                // this.stopScreenShare(); 
+                this.stopScreenShare();
                 this.switchView('view-home');
+                document.getElementById('connection-status').classList.remove('flex');
+                document.getElementById('connection-status').classList.add('hidden');
             }
 
             selectRole(role) {
-                if (role === 'emitter') {
-                    this.switchView('view-emitter');
-                } else {
-                    this.switchView('view-receiver');
-                    // Si ya hay un stream activo, lo enlazamos al televisor de inmediato
-                    if (this.localStream) {
-                        const remoteVideo = document.getElementById('remote-video');
-                        remoteVideo.srcObject = this.localStream;
-                        document.getElementById('tv-placeholder').classList.add('hidden');
-                    }
-                }
+                this.switchView(role === 'emitter' ? 'view-emitter' : 'view-receiver');
             }
 
             async startScreenShare() {
@@ -179,7 +219,6 @@
                         audio: true
                     });
 
-                    // Mostrar en el emisor
                     const localVideo = document.getElementById('local-video');
                     localVideo.srcObject = this.localStream;
                     localVideo.classList.remove('hidden');
@@ -189,13 +228,14 @@
                     document.getElementById('btn-stop').classList.remove('hidden');
                     document.getElementById('connection-status').classList.remove('hidden');
                     document.getElementById('connection-status').classList.add('flex');
+                    document.getElementById('status-text').innerText = "Transmitiendo";
 
                     this.localStream.getVideoTracks()[0].onended = () => {
                         this.stopScreenShare();
                     };
 
                 } catch (error) {
-                    console.error("Error:", error);
+                    console.error("Error al compartir pantalla:", error);
                 }
             }
 
@@ -212,11 +252,54 @@
                 const emitterPlaceholder = document.getElementById('emitter-placeholder');
                 if(emitterPlaceholder) emitterPlaceholder.classList.remove('hidden');
 
-                const remoteVideo = document.getElementById('remote-video');
-                if(remoteVideo) remoteVideo.srcObject = null;
+                document.getElementById('btn-stop').classList.add('hidden');
+                document.getElementById('btn-share').classList.remove('hidden');
+                document.getElementById('connection-status').classList.remove('flex');
+                document.getElementById('connection-status').classList.add('hidden');
+            }
+
+            connectToRoom() {
+                const code = document.getElementById('input-code').value.trim();
+                if (code.length !== 4) {
+                    alert("Introduce un código de 4 dígitos válido.");
+                    return;
+                }
+
+                document.getElementById('receiver-setup').classList.add('hidden');
+                document.getElementById('receiver-tv').classList.remove('hidden');
+                document.getElementById('connection-status').classList.remove('hidden');
+                document.getElementById('connection-status').classList.add('flex');
+                document.getElementById('status-text').innerText = "Sintonizado";
+
+                const targetPeerId = 'streamcast-' + code;
                 
-                const tvPlaceholder = document.getElementById('tv-placeholder');
-                if(tvPlaceholder) tvPlaceholder.classList.remove('hidden');
+                // Llama al emisor usando PeerJS
+                const call = this.peer.call(targetPeerId);
+
+                if (call) {
+                    call.on('stream', (remoteStream) => {
+                        const remoteVideo = document.getElementById('remote-video');
+                        remoteVideo.srcObject = remoteStream;
+                        document.getElementById('tv-placeholder').classList.add('hidden');
+                    });
+
+                    call.on('close', () => {
+                        alert("La transmisión ha finalizado.");
+                        this.disconnectTV();
+                    });
+                } else {
+                    alert("No se pudo conectar con la sala.");
+                    this.disconnectTV();
+                }
+            }
+
+            disconnectTV() {
+                document.getElementById('receiver-tv').classList.add('hidden');
+                document.getElementById('receiver-setup').classList.remove('hidden');
+                document.getElementById('input-code').value = '';
+                document.getElementById('tv-placeholder').classList.remove('hidden');
+                document.getElementById('connection-status').classList.remove('flex');
+                document.getElementById('connection-status').classList.add('hidden');
             }
 
             toggleFullscreen() {
